@@ -1,0 +1,104 @@
+stages:
+  - build
+  - install
+  - rollback
+  - Uninstall
+
+.build: &build
+  stage: build
+  script:
+    - docker login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD} ${CI_REGISTRY}
+    - docker build -f Dockerfile -t ${CI_REGISTRY_IMAGE}:${ENV}.${CI_PIPELINE_IID} .
+    - docker push ${CI_REGISTRY_IMAGE}:${ENV}.${CI_PIPELINE_IID}
+
+.install: &install
+  stage: install
+  before_script:
+    - export BASE_PATH=$(dirname `realpath $0`)
+    - echo "$ENV" > .env
+    - set -a && source .env && set +a
+  script:
+    - envsubst < pgbackup-cronjob.yaml > cronjob.yaml
+    - cat cronjob.yaml
+    - kubectl apply -f cronjob.yaml -n ${NAMESPACE}
+
+build:dev:
+  <<: *build
+  environment:
+    name: dev
+  tags:
+    - dev
+  variables:
+    NAMESPACE: dev
+    ENV: dev
+  when: manual
+  only:
+    - dev
+
+build:test:
+  <<: *build
+  environment:
+    name: test
+  tags:
+    - dev
+  variables:
+    NAMESPACE: test
+    ENV: test
+  when: manual
+  only:
+    - test
+
+build:prod:
+  <<: *build
+  environment:
+    name: prod
+  tags:
+    - dev
+  variables:
+    NAMESPACE: prod
+    ENV: prod
+  when: manual
+  only:
+    - prod
+
+Install_dev_job:
+  <<: *install
+  image: img/img:latest
+  environment:
+    name: dev
+  tags:
+    - k8s-dev
+  variables:
+    NAMESPACE: dev
+    ENV: dev
+  when: manual
+  only:
+    - dev
+
+Install_test_job:
+  <<: *install
+  image: img/img:latest
+  environment:
+    name: test
+  tags:
+    - k8s-test
+  variables:
+    NAMESPACE: test
+    ENV: test
+  when: manual
+  only:
+    - test
+
+Install_prod_job:
+  <<: *install
+  image: img/img:latest
+  environment:
+    name: prod
+  tags:
+    - k8s-prod
+  variables:
+    NAMESPACE: prod
+    ENV: prod
+  when: manual
+  only:
+    - prod

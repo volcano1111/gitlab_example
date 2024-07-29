@@ -1,0 +1,45 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pgbackup
+  namespace: ${NAMESPACE}
+spec:
+  schedule: 00 22 * * *
+  timeZone: "Europe/Moscow"
+  suspend: false
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          imagePullSecrets:
+            - name: secret
+          containers:
+            - name: pgbackup
+              image: ${CI_REGISTRY_IMAGE}:${ENV}.${CI_PIPELINE_IID}
+              command:
+                - /bin/sh
+              args:
+                - /pgbackup.sh
+              env:
+                - name: ACCESS_KEY
+                  value: ${ACCESS_KEY}
+                - name: LOCATION
+                  value: ${LOCATION}
+                - name: HOST_BASE
+                  value: ${HOST_BASE}
+                - name: SECRET_KEY
+                  value: ${SECRET_KEY}
+                - name: PG_HOST
+                  value: ${PG_HOST}
+                - name: PG_PORT
+                  value: '${PG_PORT}'
+                - name: PG_USER
+                  value: ${PG_USER}
+                - name: PGPASSWORD
+                  value: ${PGPASSWORD}
+                - name: ENV
+                  value: ${ENV}
+                - name: NAMESPACE
+                  value: ${NAMESPACE}
+          restartPolicy: OnFailure
+          terminationGracePeriodSeconds: 30
